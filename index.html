@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Shoot 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --arcade-green: #39ff14;
+            --arcade-blue: #00ffff;
+            --arcade-red: #ff003c;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000;
+            color: white;
+            font-family: 'Press Start 2P', cursive;
+            user-select: none;
+            touch-action: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            image-rendering: pixelated;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.85);
+        }
+
+        .panel {
+            background: rgba(10, 10, 10, 0.95);
+            border: 4px solid var(--arcade-blue);
+            box-shadow: 0 0 15px var(--arcade-blue), inset 0 0 15px var(--arcade-blue);
+            padding: 2rem;
+            border-radius: 4px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .btn {
+            background: transparent;
+            border: 2px solid var(--arcade-green);
+            color: var(--arcade-green);
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
+        }
+
+        .btn:hover {
+            background: var(--arcade-green);
+            color: black;
+            box-shadow: 0 0 20px var(--arcade-green);
+            transform: scale(1.05);
+        }
+
+        .btn-blue {
+            border-color: var(--arcade-blue);
+            color: var(--arcade-blue);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+        
+        .btn-blue:hover {
+            background: var(--arcade-blue);
+            color: black;
+            box-shadow: 0 0 20px var(--arcade-blue);
+        }
+
+        #credits {
+            position: absolute;
+            bottom: -100%;
+            width: 100%;
+            text-align: center;
+            color: var(--arcade-green);
+            line-height: 2;
+            z-index: 20;
+            transition: bottom 20s linear;
+        }
+
+        .scroll-credits {
+            bottom: 100% !important;
+        }
+
+        .brand-logo {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            height: 60px;
+            z-index: 50;
+            border-radius: 4px;
+            box-shadow: 0 0 15px rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="absolute top-0 left-0 w-full p-4 flex justify-between z-10 text-xs sm:text-sm text-white pointer-events-none hidden">
+        <div>SCORE: <span id="scoreVal" class="text-blue-400">0</span></div>
+        <div>LEVEL: <span id="levelVal" class="text-green-400">1</span></div>
+        <div>LIVES: <span id="livesVal" class="text-red-400">3</span></div>
+    </div>
+
+    <div id="mainMenu" class="ui-layer">
+        <div class="panel text-center max-w-2xl w-11/12 flex flex-col items-center">
+            <img src="SpaceShoot LOGO.jpg" alt="Space Shoot 2" class="max-w-full h-auto mb-6 drop-shadow-[0_0_20px_rgba(0,100,255,0.6)] rounded-lg">
+            <p class="text-xs text-gray-400 mb-8 mt-4">DEFEND THE GALAXY</p>
+            
+            <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8 w-full">
+                <button id="btnStart" class="btn flex-1">START GAME</button>
+                <button id="btnHighScores" class="btn flex-1 btn-blue">HIGH SCORES</button>
+            </div>
+            
+            <div class="text-[10px] text-gray-400 leading-loose">
+                <p>WASD / Arrows to Move</p>
+                <p>Spacebar to Fire | P to Pause</p>
+                <p>1 or Enter to Start | H for Scores | M for Menu</p>
+                <p>Esc to Exit Arcade</p>
+            </div>
+        </div>
+        <img src="NWS - Black BG.jpg" alt="Newell Web Solutions" class="brand-logo">
+    </div>
+
+    <div id="gameOverMenu" class="ui-layer hidden">
+        <div class="panel text-center">
+            <h1 class="text-4xl text-red-500 mb-4 drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]">GAME OVER</h1>
+            <p class="mb-6">FINAL SCORE: <span id="finalScore" class="text-blue-400">0</span></p>
+            
+            <div id="highScoreInputBlock" class="hidden mb-6 flex-col items-center">
+                <p class="text-yellow-400 mb-2 animate-pulse">NEW HIGH SCORE!</p>
+                <input type="text" id="playerNameInput" maxlength="3" placeholder="AAA" class="text-black text-center mb-4 p-2 w-24 uppercase font-bold outline-none rounded bg-gray-200 border-2 border-yellow-400">
+                <button id="btnSaveScore" class="btn w-full text-yellow-400 border-yellow-400 shadow-[0_0_10px_rgba(255,255,0,0.2)] hover:bg-yellow-400 hover:shadow-[0_0_20px_rgba(255,255,0,0.8)] hover:text-black">SAVE SCORE</button>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center" id="gameOverButtonsBlock">
+                <button id="btnRestart" class="btn">TRY AGAIN</button>
+                <button id="btnMenuFromGameOver" class="btn btn-blue">MAIN MENU</button>
+                <button id="btnScoresFromGameOver" class="btn btn-blue">SCORES</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="highScoresMenu" class="ui-layer hidden">
+        <div class="panel text-center max-w-lg w-11/12 flex flex-col items-center">
+            <h1 class="text-3xl text-yellow-400 mb-6 drop-shadow-[0_0_10px_rgba(255,255,0,0.8)]">TOP PILOTS</h1>
+            <ol id="highScoresList" class="text-left text-white w-full mb-8 space-y-4 text-sm sm:text-base font-mono">
+                <!-- JS Populated -->
+            </ol>
+            <button id="btnMenuFromScores" class="btn btn-blue">MAIN MENU</button>
+        </div>
+    </div>
+
+    <div id="creditsScreen" class="ui-layer hidden bg-black">
+        <div id="credits" class="text-sm sm:text-base">
+            <h1 class="text-4xl text-green-400 mb-10">VICTORY</h1>
+            <p>THE GALAXY IS SAVED</p>
+            <br><br><br>
+            <p>EXECUTIVE PRODUCER</p>
+            <p class="text-white">YOU</p>
+            <br><br>
+            <p>ART ASSETS</p>
+            <p class="text-white">YOUR CUSTOM SPRITES</p>
+            <br><br>
+            <p>THANK YOU FOR PLAYING</p>
+            <br><br><br><br>
+        </div>
+
+        <div class="absolute bottom-1/4 z-30 flex flex-col sm:flex-row gap-4 justify-center w-full">
+            <button id="btnRestartFromCredits" class="btn">PLAY AGAIN</button>
+            <button id="btnMenuFromCreditsFixed" class="btn btn-blue">MAIN MENU</button>
+        </div>
+        <img src="NWS - Black BG.jpg" alt="Newell Web Solutions" class="brand-logo">
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let WIDTH = window.innerWidth;
+        let HEIGHT = window.innerHeight;
+        
+        function resize() {
+            WIDTH = window.innerWidth;
+            HEIGHT = window.innerHeight;
+            canvas.width = WIDTH;
+            canvas.height = HEIGHT;
+            ctx.imageSmoothingEnabled = false; 
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const STATE = { MENU: 0, PLAYING: 1, GAMEOVER: 2, CREDITS: 3, HIGHSCORES: 4, PAUSED: 5 };
+        let currentState = STATE.MENU;
+        let lastTime = 0;
+        let animationId;
+
+        let score = 0, lives = 3, currentLevel = 1, speedMultiplier = 1;
+        let powerupSpawned = false;
+
+        let player;
+        let enemies = [], bullets = [], particles = [], powerups = [], stars = [];
+
+        const levelUpAudio = new Audio('level_up.mp3');
+        const menuMusic = new Audio('menu_music.mp3'); menuMusic.loop = true;
+        const endMusic = new Audio('end_music.mp3'); endMusic.loop = true;
+
+        const MusicManager = {
+            playMenu: function() { endMusic.pause(); endMusic.currentTime = 0; menuMusic.play().catch(e=>{}); },
+            playEnd: function() { menuMusic.pause(); menuMusic.currentTime = 0; endMusic.play().catch(e=>{}); },
+            stop: function() { menuMusic.pause(); endMusic.pause(); } // Absolutely shuts down all music
+        };
+
+        const AudioSys = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            },
+            playOsc: function(type, startFreq, endFreq, duration, vol = 0.1) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(endFreq, this.ctx.currentTime + duration);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + duration);
+            },
+            shoot: function() { this.playOsc('square', 800, 200, 0.1, 0.05); },
+            enemyShoot: function() { this.playOsc('sawtooth', 400, 100, 0.15, 0.03); },
+            boom: function() { this.playOsc('triangle', 100, 20, 0.4, 0.1); },
+            powerup: function() {
+                if(!this.ctx) return;
+                const t = this.ctx.currentTime, osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+                osc.type = 'sine';
+                [440, 554, 659, 880].forEach((freq, i) => osc.frequency.setValueAtTime(freq, t + i*0.1));
+                gain.gain.setValueAtTime(0.1, t); gain.gain.linearRampToValueAtTime(0, t + 0.5);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(t + 0.5);
+            }
+        };
+
+        const SpritePaths = {
+            player: 'player.png',
+            blue: 'blue_ship.png',
+            green: 'green_ship.png',
+            red: 'red_ship.png',
+            asteroid: 'asteroid.png',
+            grey: 'grey_ship.png',
+            spider: 'spider.png',
+            ufo: 'ufo.png',
+            energy: 'energy.png',
+            bg13: 'bg13.png'
+        };
+
+        const Sprites = {};
+        for(let key in SpritePaths) {
+            let img = new Image();
+            img.src = SpritePaths[key];
+            img.onload = () => { Sprites[key] = img; };
+            img.onerror = () => { Sprites[key] = null; }; 
+        }
+
+        const Fallbacks = {
+            player: (c, w, h) => { c.fillStyle='#00ffff'; c.beginPath(); c.moveTo(w/2,0); c.lineTo(w,h); c.lineTo(w/2,h-10); c.lineTo(0,h); c.fill(); },
+            blue: (c, w, h) => { c.fillStyle='#4444ff'; c.beginPath(); c.moveTo(w/2,h); c.lineTo(w,0); c.lineTo(0,0); c.fill(); },
+            green: (c, w, h) => { c.fillStyle='#44ff44'; c.beginPath(); c.moveTo(0,0); c.lineTo(w,0); c.lineTo(w/2,h); c.fill(); },
+            red: (c, w, h) => { c.fillStyle='#ff4444'; c.beginPath(); c.moveTo(w/2,h); c.lineTo(w,h/2); c.lineTo(w/2,0); c.lineTo(0,h/2); c.fill(); },
+            grey: (c, w, h) => { c.fillStyle='#888'; c.fillRect(w/4,0,w/2,h); c.fillRect(0,h/4,w,h/2); },
+            spider: (c, w, h) => { c.fillStyle='#ff003c'; c.beginPath(); c.arc(w/2,h/2,w/3,0,Math.PI*2); c.fill(); },
+            asteroid: (c, w, h) => { c.fillStyle='#666'; c.beginPath(); c.moveTo(w/2,0); c.lineTo(w,w/3); c.lineTo(w-10,h); c.lineTo(10,h-5); c.lineTo(0,h/2); c.fill(); },
+            ufo: (c, w, h) => { c.fillStyle='#aaa'; c.beginPath(); c.ellipse(w/2,h/2,w/2,h/4,0,0,Math.PI*2); c.fill(); c.fillStyle='#00ffff'; c.beginPath(); c.arc(w/2,h/3,w/4,Math.PI,0); c.fill(); },
+            energy: (c, w, h) => { c.fillStyle='#ffcc00'; c.fillRect(w/4,h/4,w/2,h/2); c.fillStyle='#fff'; c.fillRect(w/2-2,h/4+2,4,h/2-4); c.fillRect(w/4+2,h/2-2,w/2-4,4); }
+        };
+
+        function drawSprite(ctx, id, x, y, w, h, angle = 0) {
+            ctx.save();
+            ctx.translate(x + w/2, y + h/2);
+            ctx.rotate(angle);
+            if (Sprites[id]) {
+                ctx.drawImage(Sprites[id], -w/2, -h/2, w, h);
+            } else {
+                ctx.translate(-w/2, -h/2);
+                if(Fallbacks[id]) Fallbacks[id](ctx, w, h);
+                else { ctx.fillStyle = 'magenta'; ctx.fillRect(0,0,w,h); }
+            }
+            ctx.restore();
+        }
+
+        class Entity {
+            constructor(x, y, w, h) { this.x = x; this.y = y; this.w = w; this.h = h; this.dead = false; }
+        }
+
+        class Player extends Entity {
+            constructor() {
+                super(WIDTH/2 - 20, HEIGHT - 80, 40, 40);
+                this.speed = 350; this.cooldown = 0; this.invuln = 0;
+            }
+            update(dt) {
+                if (keys['KeyA'] || keys['ArrowLeft']) this.x -= this.speed * dt;
+                if (keys['KeyD'] || keys['ArrowRight']) this.x += this.speed * dt;
+                if (keys['KeyW'] || keys['ArrowUp']) this.y -= this.speed * dt;
+                if (keys['KeyS'] || keys['ArrowDown']) this.y += this.speed * dt;
+
+                this.x = Math.max(0, Math.min(WIDTH - this.w, this.x));
+                this.y = Math.max(0, Math.min(HEIGHT - this.h, this.y));
+
+                if (this.cooldown > 0) this.cooldown -= dt;
+                if (keys['Space'] && this.cooldown <= 0) {
+                    AudioSys.shoot();
+                    bullets.push(new Bullet(this.x + this.w/2 - 4, this.y, -600, true));
+                    this.cooldown = 0.15;
+                }
+                if (this.invuln > 0) this.invuln -= dt;
+            }
+            draw(ctx) {
+                if (this.invuln > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
+                drawSprite(ctx, 'player', this.x, this.y, this.w, this.h);
+            }
+            hit() {
+                if (this.invuln > 0) return;
+                lives--; AudioSys.boom();
+                createExplosion(this.x + this.w/2, this.y + this.h/2, 30, '#00ffff');
+                updateHUD();
+                if (lives <= 0) gameOver(); else this.invuln = 2;
+            }
+        }
+
+        class Bullet extends Entity {
+            constructor(x, y, vy, isPlayer, vx=0) {
+                super(x, y, 8, 16);
+                this.vy = vy; this.vx = vx; this.isPlayer = isPlayer;
+            }
+            update(dt) {
+                this.y += this.vy * dt; this.x += this.vx * dt;
+                if (this.y < -20 || this.y > HEIGHT + 20 || this.x < -20 || this.x > WIDTH + 20) this.dead = true;
+            }
+            draw(ctx) {
+                ctx.fillStyle = this.isPlayer ? '#00ffff' : '#ff003c';
+                ctx.shadowBlur = 10; ctx.shadowColor = ctx.fillStyle;
+                ctx.fillRect(this.x, this.y, this.w, this.h); ctx.shadowBlur = 0;
+            }
+        }
+
+        class Enemy extends Entity {
+            constructor(type, x, y, hpMult = 1) {
+                let size = type==='ufo'? 100 : (type==='asteroid'? 50 : 40);
+                super(x, y, size, size);
+                this.type = type;
+                this.hp = (type === 'ufo' ? 40 : (type === 'asteroid' ? 4 : (type==='spider'? 3 : 1))) * hpMult;
+                this.speed = (type === 'asteroid' ? 120 : 80) * speedMultiplier;
+                this.timer = Math.random() * Math.PI * 2;
+                this.startX = x; this.bossDir = 1; this.angle = 0;
+            }
+            update(dt) {
+                this.timer += dt;
+                switch(this.type) {
+                    case 'blue': case 'green': case 'red': case 'grey':
+                        this.y += this.speed * dt;
+                        this.x = this.startX + Math.sin(this.timer * 2) * 30;
+                        if (Math.random() < 0.005 * speedMultiplier) this.shoot();
+                        break;
+                    case 'spider':
+                        this.y += this.speed * 0.8 * dt;
+                        this.x = this.startX + Math.sin(this.timer * 5) * 80;
+                        if (Math.random() < 0.01 * speedMultiplier) this.shoot();
+                        break;
+                    case 'asteroid':
+                        this.y += this.speed * 1.5 * dt; this.angle += dt;
+                        break;
+                    case 'ufo':
+                        if (this.y < 50) this.y += this.speed * dt;
+                        else {
+                            this.x += this.speed * 1.5 * this.bossDir * dt;
+                            if (this.x < 0 || this.x > WIDTH - this.w) this.bossDir *= -1;
+                            if (Math.random() < 0.02 * speedMultiplier) {
+                                AudioSys.enemyShoot();
+                                bullets.push(new Bullet(this.x + this.w/2, this.y + this.h, 300, false));
+                                bullets.push(new Bullet(this.x + this.w/2, this.y + this.h, 300, false, -100));
+                                bullets.push(new Bullet(this.x + this.w/2, this.y + this.h, 300, false, 100));
+                            }
+                        }
+                        break;
+                }
+                if (this.y > HEIGHT + 50) this.dead = true;
+            }
+            shoot() {
+                AudioSys.enemyShoot();
+                bullets.push(new Bullet(this.x + this.w/2 - 4, this.y + this.h, 250 * speedMultiplier, false));
+            }
+            draw(ctx) { drawSprite(ctx, this.type, this.x, this.y, this.w, this.h, this.angle); }
+            hit() {
+                this.hp--;
+                if (this.hp <= 0) {
+                    this.dead = true; AudioSys.boom();
+                    createExplosion(this.x + this.w/2, this.y + this.h/2, this.type==='ufo'?100:20, '#ff4444');
+                    score += this.type === 'ufo' ? 1000 : (this.type === 'asteroid' ? 50 : 100);
+                    updateHUD();
+                }
+            }
+        }
+
+        class PowerUp extends Entity {
+            constructor(x, y) { super(x, y, 30, 30); }
+            update(dt) { this.y += 100 * dt; if(this.y > HEIGHT) this.dead = true; }
+            draw(ctx) { drawSprite(ctx, 'energy', this.x, this.y, this.w, this.h); }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.vx = (Math.random() - 0.5) * 300; this.vy = (Math.random() - 0.5) * 300;
+                this.life = 1; this.decay = Math.random() * 2 + 1; this.size = Math.random() * 4 + 2;
+            }
+            update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.life -= this.decay * dt; }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.size, this.size); ctx.globalAlpha = 1;
+            }
+        }
+
+        function checkCollision(r1, r2) {
+            const margin = 4;
+            return !(r2.x > r1.x + r1.w - margin || r2.x + r2.w - margin < r1.x || r2.y > r1.y + r1.h - margin || r2.y + r2.h - margin < r1.y);
+        }
+
+        function createExplosion(x, y, count, color) { for(let i=0; i<count; i++) particles.push(new Particle(x, y, color)); }
+
+        function startLevel() {
+            MusicManager.stop(); // Ensured failsafe: unconditionally halt music at the start of any level transition
+            enemies = []; bullets = []; powerups = [];
+            powerupSpawned = false; 
+
+            if (currentLevel >= 5 && currentLevel <= 8) speedMultiplier = 1.5;
+            else if (currentLevel >= 9 && currentLevel <= 12) speedMultiplier = 2.0;
+            else if (currentLevel === 13) speedMultiplier = 2.5;
+            else speedMultiplier = 1.0;
+
+            let baseLevel = (currentLevel - 1) % 4 + 1;
+            
+            if (currentLevel === 13) {
+                enemies.push(new Enemy('ufo', WIDTH/4 - 50, -100, speedMultiplier));
+                enemies.push(new Enemy('ufo', WIDTH*0.75 - 50, -100, speedMultiplier));
+            } else if (baseLevel === 4) {
+                enemies.push(new Enemy('ufo', WIDTH/2 - 50, -100, speedMultiplier));
+            } else {
+                let count = 8 + (currentLevel * 2);
+                for(let i=0; i<count; i++) {
+                    let type, x = Math.random() * (WIDTH - 50), y = -Math.random() * 800 - 50;
+                    if (baseLevel === 1) type = Math.random() > 0.5 ? 'blue' : 'green';
+                    else if (baseLevel === 2) type = Math.random() > 0.4 ? 'red' : 'asteroid';
+                    else if (baseLevel === 3) type = Math.random() > 0.4 ? 'grey' : 'spider';
+                    enemies.push(new Enemy(type, x, y, speedMultiplier));
+                }
+            }
+            updateHUD();
+        }
+
+        function update(dt) {
+            if (STATE.PLAYING !== currentState) return;
+            
+            // Update starfield position for all levels except 13
+            if (currentLevel !== 13) {
+                stars.forEach(s => {
+                    s.y += s.speed * dt;
+                    if(s.y > HEIGHT) { s.y = 0; s.x = Math.random() * WIDTH; }
+                });
+            }
+
+            player.update(dt);
+            bullets.forEach(b => b.update(dt));
+            enemies.forEach(e => e.update(dt));
+            powerups.forEach(p => p.update(dt));
+            particles.forEach(p => p.update(dt));
+
+            if (!powerupSpawned && enemies.length > 0 && Math.random() < 0.002) {
+                powerups.push(new PowerUp(Math.random()*(WIDTH-30), -30));
+                powerupSpawned = true;
+            }
+
+            bullets.forEach(b => {
+                if (b.dead) return;
+                if (b.isPlayer) {
+                    enemies.forEach(e => { if (!e.dead && checkCollision(b, e)) { b.dead = true; e.hit(); } });
+                } else {
+                    if (checkCollision(b, player)) { b.dead = true; player.hit(); }
+                }
+            });
+
+            enemies.forEach(e => { if (!e.dead && checkCollision(e, player)) { e.dead = true; player.hit(); } });
+            powerups.forEach(p => { if (!p.dead && checkCollision(p, player)) { p.dead = true; lives++; AudioSys.powerup(); score += 500; updateHUD(); } });
+
+            bullets = bullets.filter(b => !b.dead);
+            enemies = enemies.filter(e => !e.dead);
+            powerups = powerups.filter(p => !p.dead);
+            particles = particles.filter(p => p.life > 0);
+
+            if (enemies.length === 0) {
+                currentLevel++;
+                if (currentLevel > 13) winGame();
+                else {
+                    levelUpAudio.currentTime = 0;
+                    levelUpAudio.play().catch(e=>{});
+                    startLevel();
+                }
+            }
+        }
+
+        function drawGame() {
+            if (currentLevel === 13 && Sprites['bg13']) {
+                ctx.drawImage(Sprites['bg13'], 0, 0, WIDTH, HEIGHT);
+            } else {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+                
+                // Draw stars during gameplay (levels 1-12)
+                ctx.fillStyle = '#ffffff';
+                stars.forEach(s => {
+                    ctx.globalAlpha = s.alpha; 
+                    ctx.fillRect(s.x, s.y, s.size, s.size);
+                });
+                ctx.globalAlpha = 1.0;
+            }
+
+            particles.forEach(p => p.draw(ctx));
+            powerups.forEach(p => p.draw(ctx));
+            bullets.forEach(b => b.draw(ctx));
+            enemies.forEach(e => e.draw(ctx));
+            player.draw(ctx);
+        }
+
+        function gameLoop(timestamp) {
+            let dt = (timestamp - lastTime) / 1000;
+            if (dt > 0.1) dt = 0.1;
+            lastTime = timestamp;
+
+            if (currentState === STATE.PLAYING) {
+                update(dt);
+                drawGame();
+            } else if (currentState === STATE.PAUSED) {
+                drawGame(); 
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, WIDTH, HEIGHT);
+                ctx.fillStyle = '#39ff14'; ctx.textAlign = 'center'; ctx.font = '40px "Press Start 2P"';
+                ctx.fillText('PAUSED', WIDTH / 2, HEIGHT / 2 - 20);
+                ctx.font = '14px "Press Start 2P"'; ctx.fillText('P TO RESUME  |  M FOR MENU', WIDTH / 2, HEIGHT / 2 + 40);
+                ctx.textAlign = 'left'; 
+            } else if (currentState === STATE.MENU || currentState === STATE.HIGHSCORES) {
+                ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, WIDTH, HEIGHT);
+                ctx.fillStyle = '#ffffff';
+                stars.forEach(s => {
+                    s.y += s.speed * dt;
+                    if(s.y > HEIGHT) { s.y = 0; s.x = Math.random()*WIDTH; }
+                    ctx.globalAlpha = s.alpha; ctx.fillRect(s.x, s.y, s.size, s.size);
+                });
+                ctx.globalAlpha = 1.0;
+            }
+
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        const ScoreManager = {
+            scores: [],
+            init: function() {
+                const saved = localStorage.getItem('spaceShoot2Scores');
+                if (saved) this.scores = JSON.parse(saved);
+                else this.scores = [ {name:'NWS',score:5000}, {name:'ACE',score:4000}, {name:'MAX',score:3000}, {name:'ZED',score:2000}, {name:'HAL',score:1000} ];
+            },
+            save: function() { localStorage.setItem('spaceShoot2Scores', JSON.stringify(this.scores)); },
+            isHighScore: function(score) { return this.scores.length < 5 || score > this.scores[this.scores.length-1].score; },
+            addScore: function(name, score) {
+                this.scores.push({ name: name.toUpperCase() || 'AAA', score: score });
+                this.scores.sort((a,b) => b.score - a.score);
+                this.scores.splice(5); this.save();
+            },
+            render: function() {
+                const list = document.getElementById('highScoresList'); list.innerHTML = '';
+                this.scores.forEach((s, i) => { list.innerHTML += `<li class="flex justify-between border-b border-gray-700 pb-2"><span>${i+1}. ${s.name}</span><span class="text-blue-400">${s.score}</span></li>`; });
+            }
+        };
+        ScoreManager.init();
+
+        const keys = {};
+        window.addEventListener('keydown', e => { 
+            keys[e.code] = true; keys[e.key] = true; 
+            if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); 
+            
+            const k = e.key.toLowerCase();
+            
+            if (e.code === 'Escape') { window.close(); }
+            
+            if (k === 'p') {
+                if (currentState === STATE.PLAYING) currentState = STATE.PAUSED;
+                else if (currentState === STATE.PAUSED) { currentState = STATE.PLAYING; lastTime = performance.now(); }
+            }
+            
+            if (k === 'm' && [STATE.GAMEOVER, STATE.HIGHSCORES, STATE.PAUSED, STATE.CREDITS].includes(currentState)) {
+                MusicManager.playMenu();
+                document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+                document.getElementById('credits').classList.remove('scroll-credits');
+                document.getElementById('mainMenu').classList.remove('hidden');
+                currentState = STATE.MENU;
+            }
+            
+            if (k === 'h' && currentState === STATE.MENU) { document.getElementById('btnHighScores').click(); }
+            
+            if ((e.code === 'Enter' || e.key === '1') && currentState === STATE.MENU) { document.getElementById('btnStart').click(); }
+            
+            if (k === 't' && currentState === STATE.PLAYING) {
+                currentLevel = 13;
+                startLevel();
+            }
+
+            if (k === 'c' && currentState === STATE.PLAYING) {
+                winGame();
+            }
+        });
+        window.addEventListener('keyup', e => { keys[e.code] = false; keys[e.key] = false; });
+
+        function initStars() {
+            stars = [];
+            for(let i=0; i<100; i++) stars.push({ x: Math.random()*WIDTH, y: Math.random()*HEIGHT, size: Math.random()*2+1, speed: Math.random()*50+20, alpha: Math.random() });
+        }
+
+        function updateHUD() {
+            document.getElementById('scoreVal').innerText = score;
+            document.getElementById('levelVal').innerText = currentLevel;
+            document.getElementById('livesVal').innerText = lives;
+        }
+
+        function startGame() {
+            AudioSys.init(); 
+            MusicManager.stop(); // Ensures game start is completely silent
+            score = 0; lives = 3; currentLevel = 1; speedMultiplier = 1;
+            player = new Player();
+            initStars(); startLevel();
+            
+            currentState = STATE.PLAYING;
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+            document.getElementById('credits').classList.remove('scroll-credits');
+            document.getElementById('hud').classList.remove('hidden');
+            
+            lastTime = performance.now();
+        }
+
+        function gameOver() {
+            currentState = STATE.GAMEOVER; 
+            MusicManager.playEnd(); // Plays End Game Music
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('gameOverMenu').classList.remove('hidden');
+            document.getElementById('finalScore').innerText = score;
+            
+            if (ScoreManager.isHighScore(score) && score > 0) {
+                document.getElementById('highScoreInputBlock').classList.remove('hidden');
+                document.getElementById('highScoreInputBlock').classList.add('flex');
+                document.getElementById('gameOverButtonsBlock').classList.add('hidden');
+                document.getElementById('playerNameInput').value = '';
+                document.getElementById('playerNameInput').focus();
+            } else {
+                document.getElementById('highScoreInputBlock').classList.add('hidden');
+                document.getElementById('highScoreInputBlock').classList.remove('flex');
+                document.getElementById('gameOverButtonsBlock').classList.remove('hidden');
+            }
+        }
+
+        function winGame() {
+            currentState = STATE.CREDITS; 
+            MusicManager.playEnd(); // Plays End Game Music
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('creditsScreen').classList.remove('hidden');
+            if (ScoreManager.isHighScore(score) && score > 0) ScoreManager.addScore('YOU', score);
+            setTimeout(() => { document.getElementById('credits').classList.add('scroll-credits'); }, 100);
+        }
+
+        document.getElementById('btnStart').addEventListener('click', startGame);
+        document.getElementById('btnRestart').addEventListener('click', startGame);
+        document.getElementById('btnRestartFromCredits').addEventListener('click', startGame);
+
+        document.getElementById('btnHighScores').addEventListener('click', () => {
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('highScoresMenu').classList.remove('hidden');
+            ScoreManager.render(); currentState = STATE.HIGHSCORES;
+        });
+
+        document.getElementById('btnScoresFromGameOver').addEventListener('click', () => {
+            MusicManager.playMenu(); // Switches to menu music when leaving game over
+            document.getElementById('gameOverMenu').classList.add('hidden');
+            document.getElementById('highScoresMenu').classList.remove('hidden');
+            ScoreManager.render(); currentState = STATE.HIGHSCORES;
+        });
+
+        document.getElementById('btnMenuFromScores').addEventListener('click', () => {
+            MusicManager.playMenu(); 
+            document.getElementById('highScoresMenu').classList.add('hidden');
+            document.getElementById('mainMenu').classList.remove('hidden');
+            currentState = STATE.MENU;
+        });
+
+        document.getElementById('btnSaveScore').addEventListener('click', () => {
+            ScoreManager.addScore(document.getElementById('playerNameInput').value || 'AAA', score);
+            document.getElementById('highScoreInputBlock').classList.add('hidden');
+            document.getElementById('highScoreInputBlock').classList.remove('flex');
+            document.getElementById('gameOverButtonsBlock').classList.remove('hidden');
+        });
+
+        document.getElementById('btnMenuFromGameOver').addEventListener('click', () => {
+            MusicManager.playMenu(); 
+            document.getElementById('gameOverMenu').classList.add('hidden');
+            document.getElementById('mainMenu').classList.remove('hidden');
+            currentState = STATE.MENU;
+        });
+
+        document.getElementById('btnMenuFromCreditsFixed').addEventListener('click', () => {
+            MusicManager.playMenu(); 
+            document.getElementById('creditsScreen').classList.add('hidden');
+            document.getElementById('credits').classList.remove('scroll-credits');
+            document.getElementById('mainMenu').classList.remove('hidden');
+            currentState = STATE.MENU;
+        });
+
+        // Initialize menu music on the very first interaction
+        window.addEventListener('click', () => { 
+            if (currentState === STATE.MENU || currentState === STATE.HIGHSCORES) MusicManager.playMenu(); 
+        }, { once: true });
+
+        initStars();
+        animationId = requestAnimationFrame(gameLoop);
+
+    </script>
+</body>
+</html>
