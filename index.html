@@ -89,13 +89,13 @@
 
         #credits {
             position: absolute;
-            bottom: -100%;
+            bottom: -160%;
             width: 100%;
             text-align: center;
             color: var(--arcade-green);
             line-height: 2;
             z-index: 20;
-            transition: bottom 20s linear;
+            transition: bottom 50s linear; 
         }
 
         .scroll-credits {
@@ -110,6 +110,17 @@
             z-index: 50;
             border-radius: 4px;
             box-shadow: 0 0 15px rgba(255,255,255,0.2);
+        }
+
+        .credit-scores {
+            list-style: none;
+            padding: 0;
+            margin: 0 auto;
+            width: 100%;
+            max-width: 300px;
+            text-align: left;
+            color: white;
+            line-height: 2.5;
         }
     </style>
 </head>
@@ -177,10 +188,11 @@
         <div id="credits" class="text-sm sm:text-base">
             <h1 class="text-4xl text-green-400 mb-10">VICTORY</h1>
             <br><br><br><br><br><br><br><br>
+            <br><br><br><br><br><br><br><br>
             <p>GREAT SHOOTING</p>
             <br><br>
             <p>THE GALAXY IS SAVED!</p>
-	    <br><br><br>
+            <br><br><br>
             <p>EXECUTIVE PRODUCER</p>
             <p class="text-white">Newell Web Solutions</p>
             <br><br>
@@ -189,8 +201,14 @@
             <br><br>
             <p>THANK YOU FOR PLAYING</p>
             <br><br>
-            <p><img src ="SpaceShoot LOGO.jpg"></img></p>
-            <br><br><br><br>
+            <p><img src ="SpaceShoot LOGO.jpg" style="display:inline-block; max-width:80%;"></img></p>
+            <br><br><br>
+            <p class="text-yellow-400">HALL OF FAME</p>
+            <br>
+            <ol id="creditsHighScores" class="credit-scores">
+                <!-- JS Populated -->
+            </ol>
+            <br><br><br><br><br><br><br><br>
         </div>
 
         <div class="absolute bottom-1/4 z-30 flex flex-col sm:flex-row gap-4 justify-center w-full">
@@ -232,40 +250,64 @@
         const menuMusic = new Audio('menu_music.mp3'); menuMusic.loop = true;
         const endMusic = new Audio('end_music.mp3'); endMusic.loop = true;
 
+        // Failsafe Audio Controllers
         const MusicManager = {
-            playMenu: function() { endMusic.pause(); endMusic.currentTime = 0; menuMusic.play().catch(e=>{}); },
-            playEnd: function() { menuMusic.pause(); menuMusic.currentTime = 0; endMusic.play().catch(e=>{}); },
-            stop: function() { menuMusic.pause(); endMusic.pause(); } // Absolutely shuts down all music
+            playMenu: function() { 
+                try {
+                    endMusic.pause(); endMusic.currentTime = 0; 
+                    let p = menuMusic.play();
+                    if(p !== undefined) p.catch(e => {}); // Catches autoplay blocks silently
+                } catch(e) {} 
+            },
+            playEnd: function() { 
+                try {
+                    menuMusic.pause(); menuMusic.currentTime = 0; 
+                    let p = endMusic.play();
+                    if(p !== undefined) p.catch(e => {});
+                } catch(e) {} 
+            },
+            stop: function() { 
+                try { menuMusic.pause(); endMusic.pause(); } catch(e) {} 
+            }
         };
 
         const AudioSys = {
             ctx: null,
             init: function() {
-                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                if (this.ctx.state === 'suspended') this.ctx.resume();
+                try {
+                    if (!this.ctx) {
+                        const AC = window.AudioContext || window.webkitAudioContext;
+                        if(AC) this.ctx = new AC();
+                    }
+                    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                } catch(e) { console.warn("AudioContext init bypassed"); }
             },
             playOsc: function(type, startFreq, endFreq, duration, vol = 0.1) {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(endFreq, this.ctx.currentTime + duration);
-                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-                osc.connect(gain); gain.connect(this.ctx.destination);
-                osc.start(); osc.stop(this.ctx.currentTime + duration);
+                try {
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(endFreq, this.ctx.currentTime + duration);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(); osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
             },
             shoot: function() { this.playOsc('square', 800, 200, 0.1, 0.05); },
             enemyShoot: function() { this.playOsc('sawtooth', 400, 100, 0.15, 0.03); },
             boom: function() { this.playOsc('triangle', 100, 20, 0.4, 0.1); },
             powerup: function() {
-                if(!this.ctx) return;
-                const t = this.ctx.currentTime, osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
-                osc.type = 'sine';
-                [440, 554, 659, 880].forEach((freq, i) => osc.frequency.setValueAtTime(freq, t + i*0.1));
-                gain.gain.setValueAtTime(0.1, t); gain.gain.linearRampToValueAtTime(0, t + 0.5);
-                osc.connect(gain); gain.connect(this.ctx.destination);
-                osc.start(); osc.stop(t + 0.5);
+                try {
+                    if(!this.ctx) return;
+                    const t = this.ctx.currentTime, osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    [440, 554, 659, 880].forEach((freq, i) => osc.frequency.setValueAtTime(freq, t + i*0.1));
+                    gain.gain.setValueAtTime(0.1, t); gain.gain.linearRampToValueAtTime(0, t + 0.5);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(); osc.stop(t + 0.5);
+                } catch(e) {}
             }
         };
 
@@ -456,7 +498,7 @@
         function createExplosion(x, y, count, color) { for(let i=0; i<count; i++) particles.push(new Particle(x, y, color)); }
 
         function startLevel() {
-            MusicManager.stop(); // Ensured failsafe: unconditionally halt music at the start of any level transition
+            MusicManager.stop(); 
             enemies = []; bullets = []; powerups = [];
             powerupSpawned = false; 
 
@@ -488,7 +530,6 @@
         function update(dt) {
             if (STATE.PLAYING !== currentState) return;
             
-            // Update starfield position for all levels except 13
             if (currentLevel !== 13) {
                 stars.forEach(s => {
                     s.y += s.speed * dt;
@@ -528,8 +569,11 @@
                 currentLevel++;
                 if (currentLevel > 13) winGame();
                 else {
-                    levelUpAudio.currentTime = 0;
-                    levelUpAudio.play().catch(e=>{});
+                    try {
+                        levelUpAudio.currentTime = 0;
+                        let p = levelUpAudio.play();
+                        if (p !== undefined) p.catch(e=>{});
+                    } catch(err) {}
                     startLevel();
                 }
             }
@@ -542,7 +586,6 @@
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, WIDTH, HEIGHT);
                 
-                // Draw stars during gameplay (levels 1-12)
                 ctx.fillStyle = '#ffffff';
                 stars.forEach(s => {
                     ctx.globalAlpha = s.alpha; 
@@ -589,33 +632,77 @@
 
         const ScoreManager = {
             scores: [],
+            defaultScores: [ {name:'NWS',score:5000}, {name:'ACE',score:4000}, {name:'MAX',score:3000}, {name:'ZED',score:2000}, {name:'HAL',score:1000} ],
             init: function() {
-                const saved = localStorage.getItem('spaceShoot2Scores');
-                if (saved) this.scores = JSON.parse(saved);
-                else this.scores = [ {name:'NWS',score:5000}, {name:'ACE',score:4000}, {name:'MAX',score:3000}, {name:'ZED',score:2000}, {name:'HAL',score:1000} ];
+                try {
+                    const saved = localStorage.getItem('spaceShoot2Scores');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
+                            this.scores = parsed;
+                        } else {
+                            this.scores = [...this.defaultScores];
+                        }
+                    } else {
+                        this.scores = [...this.defaultScores];
+                    }
+                } catch(e) {
+                    console.warn("Save data bypassed, loading defaults.");
+                    this.scores = [...this.defaultScores];
+                }
             },
-            save: function() { localStorage.setItem('spaceShoot2Scores', JSON.stringify(this.scores)); },
-            isHighScore: function(score) { return this.scores.length < 5 || score > this.scores[this.scores.length-1].score; },
+            save: function() { 
+                try {
+                    localStorage.setItem('spaceShoot2Scores', JSON.stringify(this.scores)); 
+                } catch(e) {
+                    console.warn("Could not save to local storage", e);
+                }
+            },
+            isHighScore: function(score) { 
+                return this.scores.length < 5 || score > this.scores[this.scores.length-1].score; 
+            },
             addScore: function(name, score) {
                 this.scores.push({ name: name.toUpperCase() || 'AAA', score: score });
                 this.scores.sort((a,b) => b.score - a.score);
-                this.scores.splice(5); this.save();
+                this.scores.splice(5); 
+                this.save();
             },
             render: function() {
-                const list = document.getElementById('highScoresList'); list.innerHTML = '';
-                this.scores.forEach((s, i) => { list.innerHTML += `<li class="flex justify-between border-b border-gray-700 pb-2"><span>${i+1}. ${s.name}</span><span class="text-blue-400">${s.score}</span></li>`; });
+                const list = document.getElementById('highScoresList'); 
+                if(!list) return;
+                list.innerHTML = '';
+                this.scores.forEach((s, i) => { 
+                    list.innerHTML += `<li class="flex justify-between border-b border-gray-700 pb-2"><span>${i+1}. ${s.name}</span><span class="text-blue-400">${s.score}</span></li>`; 
+                });
+            },
+            renderCreditsList: function() {
+                const list = document.getElementById('creditsHighScores'); 
+                if(!list) return;
+                list.innerHTML = '';
+                this.scores.forEach((s, i) => { 
+                    const safeName = s.name || 'AAA';
+                    const safeScore = s.score !== undefined ? s.score : 0;
+                    list.innerHTML += `<li style="display:flex; justify-content:space-between; border-bottom:1px solid #374151; padding-bottom:0.5rem; margin-bottom:0.5rem; width:100%;">
+                        <span>${i+1}. ${safeName}</span>
+                        <span style="color:#60a5fa;">${safeScore}</span>
+                    </li>`; 
+                });
             }
         };
         ScoreManager.init();
 
         const keys = {};
         window.addEventListener('keydown', e => { 
-            keys[e.code] = true; keys[e.key] = true; 
-            if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); 
+            if (!e) return;
+            const code = e.code || '';
+            const key = e.key || '';
             
-            const k = e.key.toLowerCase();
+            keys[code] = true; keys[key] = true; 
+            if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(code)) e.preventDefault(); 
             
-            if (e.code === 'Escape') { window.close(); }
+            const k = key.toLowerCase();
+            
+            if (code === 'Escape') { try { window.close(); } catch(err){} }
             
             if (k === 'p') {
                 if (currentState === STATE.PLAYING) currentState = STATE.PAUSED;
@@ -625,14 +712,22 @@
             if (k === 'm' && [STATE.GAMEOVER, STATE.HIGHSCORES, STATE.PAUSED, STATE.CREDITS].includes(currentState)) {
                 MusicManager.playMenu();
                 document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
-                document.getElementById('credits').classList.remove('scroll-credits');
-                document.getElementById('mainMenu').classList.remove('hidden');
+                const cred = document.getElementById('credits');
+                if(cred) cred.classList.remove('scroll-credits');
+                const main = document.getElementById('mainMenu');
+                if(main) main.classList.remove('hidden');
                 currentState = STATE.MENU;
             }
             
-            if (k === 'h' && currentState === STATE.MENU) { document.getElementById('btnHighScores').click(); }
+            if (k === 'h' && currentState === STATE.MENU) { 
+                const btn = document.getElementById('btnHighScores');
+                if(btn) btn.click(); 
+            }
             
-            if ((e.code === 'Enter' || e.key === '1') && currentState === STATE.MENU) { document.getElementById('btnStart').click(); }
+            if ((code === 'Enter' || key === '1') && currentState === STATE.MENU) { 
+                const btn = document.getElementById('btnStart');
+                if(btn) btn.click(); 
+            }
             
             if (k === 't' && currentState === STATE.PLAYING) {
                 currentLevel = 13;
@@ -643,7 +738,11 @@
                 winGame();
             }
         });
-        window.addEventListener('keyup', e => { keys[e.code] = false; keys[e.key] = false; });
+        window.addEventListener('keyup', e => { 
+            if(!e) return;
+            if(e.code) keys[e.code] = false; 
+            if(e.key) keys[e.key] = false; 
+        });
 
         function initStars() {
             stars = [];
@@ -651,104 +750,140 @@
         }
 
         function updateHUD() {
-            document.getElementById('scoreVal').innerText = score;
-            document.getElementById('levelVal').innerText = currentLevel;
-            document.getElementById('livesVal').innerText = lives;
+            const scoreEl = document.getElementById('scoreVal');
+            const levelEl = document.getElementById('levelVal');
+            const livesEl = document.getElementById('livesVal');
+            if(scoreEl) scoreEl.innerText = score;
+            if(levelEl) levelEl.innerText = currentLevel;
+            if(livesEl) livesEl.innerText = lives;
         }
 
         function startGame() {
-            AudioSys.init(); 
-            MusicManager.stop(); // Ensures game start is completely silent
+            try { AudioSys.init(); } catch(e) {}
+            try { MusicManager.stop(); } catch(e) {}
+            
             score = 0; lives = 3; currentLevel = 1; speedMultiplier = 1;
             player = new Player();
             initStars(); startLevel();
             
             currentState = STATE.PLAYING;
             document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
-            document.getElementById('credits').classList.remove('scroll-credits');
-            document.getElementById('hud').classList.remove('hidden');
+            const cred = document.getElementById('credits');
+            if(cred) cred.classList.remove('scroll-credits');
+            const hud = document.getElementById('hud');
+            if(hud) hud.classList.remove('hidden');
             
             lastTime = performance.now();
         }
 
         function gameOver() {
             currentState = STATE.GAMEOVER; 
-            MusicManager.playEnd(); // Plays End Game Music
-            document.getElementById('hud').classList.add('hidden');
-            document.getElementById('gameOverMenu').classList.remove('hidden');
-            document.getElementById('finalScore').innerText = score;
+            MusicManager.playEnd(); 
+            const hud = document.getElementById('hud');
+            if(hud) hud.classList.add('hidden');
+            const menu = document.getElementById('gameOverMenu');
+            if(menu) menu.classList.remove('hidden');
+            const fs = document.getElementById('finalScore');
+            if(fs) fs.innerText = score;
             
-            if (ScoreManager.isHighScore(score) && score > 0) {
-                document.getElementById('highScoreInputBlock').classList.remove('hidden');
-                document.getElementById('highScoreInputBlock').classList.add('flex');
-                document.getElementById('gameOverButtonsBlock').classList.add('hidden');
-                document.getElementById('playerNameInput').value = '';
-                document.getElementById('playerNameInput').focus();
-            } else {
-                document.getElementById('highScoreInputBlock').classList.add('hidden');
-                document.getElementById('highScoreInputBlock').classList.remove('flex');
-                document.getElementById('gameOverButtonsBlock').classList.remove('hidden');
-            }
+            try {
+                if (ScoreManager.isHighScore(score) && score > 0) {
+                    document.getElementById('highScoreInputBlock').classList.remove('hidden');
+                    document.getElementById('highScoreInputBlock').classList.add('flex');
+                    document.getElementById('gameOverButtonsBlock').classList.add('hidden');
+                    const input = document.getElementById('playerNameInput');
+                    if(input) { input.value = ''; input.focus(); }
+                } else {
+                    document.getElementById('highScoreInputBlock').classList.add('hidden');
+                    document.getElementById('highScoreInputBlock').classList.remove('flex');
+                    document.getElementById('gameOverButtonsBlock').classList.remove('hidden');
+                }
+            } catch(e) { console.warn('Score logic bypassed'); }
         }
 
         function winGame() {
             currentState = STATE.CREDITS; 
-            MusicManager.playEnd(); // Plays End Game Music
-            document.getElementById('hud').classList.add('hidden');
-            document.getElementById('creditsScreen').classList.remove('hidden');
-            if (ScoreManager.isHighScore(score) && score > 0) ScoreManager.addScore('YOU', score);
-            setTimeout(() => { document.getElementById('credits').classList.add('scroll-credits'); }, 100);
+            MusicManager.playEnd(); 
+            const hud = document.getElementById('hud');
+            if(hud) hud.classList.add('hidden');
+            const screen = document.getElementById('creditsScreen');
+            if(screen) screen.classList.remove('hidden');
+            
+            try {
+                if (ScoreManager.isHighScore(score) && score > 0) ScoreManager.addScore('YOU', score);
+                ScoreManager.renderCreditsList();
+            } catch(e) { console.warn('Credit score render bypassed'); }
+
+            setTimeout(() => { 
+                const cred = document.getElementById('credits');
+                if(cred) cred.classList.add('scroll-credits'); 
+            }, 100);
         }
 
-        document.getElementById('btnStart').addEventListener('click', startGame);
-        document.getElementById('btnRestart').addEventListener('click', startGame);
-        document.getElementById('btnRestartFromCredits').addEventListener('click', startGame);
+        const btnStart = document.getElementById('btnStart');
+        if(btnStart) btnStart.addEventListener('click', startGame);
+        
+        const btnRestart = document.getElementById('btnRestart');
+        if(btnRestart) btnRestart.addEventListener('click', startGame);
+        
+        const btnRestartCred = document.getElementById('btnRestartFromCredits');
+        if(btnRestartCred) btnRestartCred.addEventListener('click', startGame);
 
-        document.getElementById('btnHighScores').addEventListener('click', () => {
+        const btnHigh = document.getElementById('btnHighScores');
+        if(btnHigh) btnHigh.addEventListener('click', () => {
             document.getElementById('mainMenu').classList.add('hidden');
             document.getElementById('highScoresMenu').classList.remove('hidden');
             ScoreManager.render(); currentState = STATE.HIGHSCORES;
         });
 
-        document.getElementById('btnScoresFromGameOver').addEventListener('click', () => {
-            MusicManager.playMenu(); // Switches to menu music when leaving game over
+        const btnScoresGO = document.getElementById('btnScoresFromGameOver');
+        if(btnScoresGO) btnScoresGO.addEventListener('click', () => {
+            MusicManager.playMenu(); 
             document.getElementById('gameOverMenu').classList.add('hidden');
             document.getElementById('highScoresMenu').classList.remove('hidden');
             ScoreManager.render(); currentState = STATE.HIGHSCORES;
         });
 
-        document.getElementById('btnMenuFromScores').addEventListener('click', () => {
+        const btnMenuScores = document.getElementById('btnMenuFromScores');
+        if(btnMenuScores) btnMenuScores.addEventListener('click', () => {
             MusicManager.playMenu(); 
             document.getElementById('highScoresMenu').classList.add('hidden');
             document.getElementById('mainMenu').classList.remove('hidden');
             currentState = STATE.MENU;
         });
 
-        document.getElementById('btnSaveScore').addEventListener('click', () => {
-            ScoreManager.addScore(document.getElementById('playerNameInput').value || 'AAA', score);
+        const btnSave = document.getElementById('btnSaveScore');
+        if(btnSave) btnSave.addEventListener('click', () => {
+            const input = document.getElementById('playerNameInput');
+            ScoreManager.addScore(input ? input.value : 'AAA', score);
             document.getElementById('highScoreInputBlock').classList.add('hidden');
             document.getElementById('highScoreInputBlock').classList.remove('flex');
             document.getElementById('gameOverButtonsBlock').classList.remove('hidden');
         });
 
-        document.getElementById('btnMenuFromGameOver').addEventListener('click', () => {
+        const btnMenuGO = document.getElementById('btnMenuFromGameOver');
+        if(btnMenuGO) btnMenuGO.addEventListener('click', () => {
             MusicManager.playMenu(); 
             document.getElementById('gameOverMenu').classList.add('hidden');
             document.getElementById('mainMenu').classList.remove('hidden');
             currentState = STATE.MENU;
         });
 
-        document.getElementById('btnMenuFromCreditsFixed').addEventListener('click', () => {
+        const btnMenuCred = document.getElementById('btnMenuFromCreditsFixed');
+        if(btnMenuCred) btnMenuCred.addEventListener('click', () => {
             MusicManager.playMenu(); 
             document.getElementById('creditsScreen').classList.add('hidden');
-            document.getElementById('credits').classList.remove('scroll-credits');
+            const cred = document.getElementById('credits');
+            if(cred) cred.classList.remove('scroll-credits');
             document.getElementById('mainMenu').classList.remove('hidden');
             currentState = STATE.MENU;
         });
 
-        // Initialize menu music on the very first interaction
-        window.addEventListener('click', () => { 
-            if (currentState === STATE.MENU || currentState === STATE.HIGHSCORES) MusicManager.playMenu(); 
+        // Initialize menu music on first interaction (only if not playing already)
+        document.body.addEventListener('click', () => { 
+            if (currentState === STATE.MENU || currentState === STATE.HIGHSCORES) {
+                MusicManager.playMenu(); 
+            }
         }, { once: true });
 
         initStars();
