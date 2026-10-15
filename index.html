@@ -89,13 +89,13 @@
 
         #credits {
             position: absolute;
-            bottom: -160%;
+            bottom: -180%;
             width: 100%;
             text-align: center;
             color: var(--arcade-green);
             line-height: 2;
             z-index: 20;
-            transition: bottom 50s linear; 
+            transition: bottom 60s linear; 
         }
 
         .scroll-credits {
@@ -146,10 +146,10 @@
             </div>
             
             <div class="text-[10px] text-gray-400 leading-loose">
-                <p>WASD / Arrows to Move</p>
-                <p>Spacebar to Fire | P to Pause</p>
-                <p>1 or Enter to Start | H for Scores | M for Menu</p>
-                <p>Esc to Exit Arcade</p>
+                <p>ARROWS/JOYSTICK : Navigate | SPACE (FIRE) : Shoot</p>
+                <p>V : Change View | CTRL+P : Pause | ESC : Quit</p>
+                <p>R / SPACE : Start Game | H : High Scores</p>
+                <p>Q : Exit to Arcade Menu</p>
             </div>
         </div>
         <img src="NWS - Black BG.jpg" alt="Newell Web Solutions" class="brand-logo">
@@ -157,17 +157,21 @@
 
     <div id="gameOverMenu" class="ui-layer hidden">
         <div class="panel text-center">
-            <h1 class="text-4xl text-red-500 mb-4 drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]">GAME OVER</h1>
+            <h1 id="gameOverTitle" class="text-4xl text-red-500 mb-4 drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]">GAME OVER</h1>
             <p class="mb-6">FINAL SCORE: <span id="finalScore" class="text-blue-400">0</span></p>
             
             <div id="highScoreInputBlock" class="hidden mb-6 flex-col items-center">
-                <p class="text-yellow-400 mb-2 animate-pulse">NEW HIGH SCORE!</p>
-                <input type="text" id="playerNameInput" maxlength="3" placeholder="AAA" class="text-black text-center mb-4 p-2 w-24 uppercase font-bold outline-none rounded bg-gray-200 border-2 border-yellow-400">
-                <button id="btnSaveScore" class="btn w-full text-yellow-400 border-yellow-400 shadow-[0_0_10px_rgba(255,255,0,0.2)] hover:bg-yellow-400 hover:shadow-[0_0_20px_rgba(255,255,0,0.8)] hover:text-black">SAVE SCORE</button>
+                <p class="text-yellow-400 mb-4 animate-pulse">ENTER INITIALS</p>
+                <div id="initials-container" class="text-4xl text-white font-mono tracking-widest mb-4 flex gap-4 justify-center">
+                    <span class="initial-char border-b-4 border-yellow-400 text-yellow-400 pb-1" id="char-0">A</span>
+                    <span class="initial-char border-b-4 border-transparent text-gray-500 pb-1" id="char-1">A</span>
+                    <span class="initial-char border-b-4 border-transparent text-gray-500 pb-1" id="char-2">A</span>
+                </div>
+                <div class="sub-message text-[10px] text-gray-400 mt-2">ARROWS/WASD to Change | SPACE to Submit</div>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-4 justify-center" id="gameOverButtonsBlock">
-                <button id="btnRestart" class="btn">TRY AGAIN</button>
+                <button id="btnRestart" class="btn">TRY AGAIN (FIRE)</button>
                 <button id="btnMenuFromGameOver" class="btn btn-blue">MAIN MENU</button>
                 <button id="btnScoresFromGameOver" class="btn btn-blue">SCORES</button>
             </div>
@@ -186,13 +190,17 @@
 
     <div id="creditsScreen" class="ui-layer hidden bg-black">
         <div id="credits" class="text-sm sm:text-base">
-            <h1 class="text-4xl text-green-400 mb-10">VICTORY</h1>
-            <br><br><br><br><br><br><br><br>
-            <br><br><br><br><br><br><br><br>
-            <p>GREAT SHOOTING</p>
-            <br><br>
-            <p>THE GALAXY IS SAVED!</p>
-            <br><br><br>
+            
+            <div id="victoryTextContainer">
+                <h1 class="text-4xl text-green-400 mb-10">VICTORY</h1>
+                <br><br><br><br><br><br><br><br>
+                <br><br><br><br><br><br><br><br>
+                <p>GREAT SHOOTING</p>
+                <br><br>
+                <p>THE GALAXY IS SAVED!</p>
+                <br><br><br>
+            </div>
+
             <p>EXECUTIVE PRODUCER</p>
             <p class="text-white">Newell Web Solutions</p>
             <br><br>
@@ -211,8 +219,8 @@
             <br><br><br><br><br><br><br><br>
         </div>
 
-        <div class="absolute bottom-1/4 z-30 flex flex-col sm:flex-row gap-4 justify-center w-full">
-            <button id="btnRestartFromCredits" class="btn">PLAY AGAIN</button>
+        <div id="creditsButtonsBlock" class="absolute bottom-1/4 z-30 flex flex-col sm:flex-row gap-4 justify-center w-full">
+            <button id="btnRestartFromCredits" class="btn">PLAY AGAIN (FIRE)</button>
             <button id="btnMenuFromCreditsFixed" class="btn btn-blue">MAIN MENU</button>
         </div>
         <img src="NWS - Black BG.jpg" alt="Newell Web Solutions" class="brand-logo">
@@ -235,16 +243,29 @@
         window.addEventListener('resize', resize);
         resize();
 
-        const STATE = { MENU: 0, PLAYING: 1, GAMEOVER: 2, CREDITS: 3, HIGHSCORES: 4, PAUSED: 5 };
+        const STATE = { MENU: 0, PLAYING: 1, GAMEOVER: 2, CREDITS: 3, HIGHSCORES: 4, PAUSED: 5, VICTORY: 6, DEMO: 7 };
         let currentState = STATE.MENU;
         let lastTime = 0;
         let animationId;
+
+        // Attract Mode & Menu Timers
+        let attractTimer = 0;
+        let demoTimer = 0;
+        let gameOverTimer = 0;
+        let creditsTimer = 0;
+        let isAttractCredits = false;
 
         let score = 0, lives = 3, currentLevel = 1, speedMultiplier = 1;
         let powerupSpawned = false;
 
         let player;
         let enemies = [], bullets = [], particles = [], powerups = [], stars = [];
+
+        // Arcade High Score Variables
+        const arcadeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ".split('');
+        let arcadeInitials = [0, 0, 0]; // Points to 'A'
+        let currentLetterIdx = 0;
+        let isEnteringScore = false;
 
         const levelUpAudio = new Audio('level_up.mp3');
         const menuMusic = new Audio('menu_music.mp3'); menuMusic.loop = true;
@@ -256,7 +277,7 @@
                 try {
                     endMusic.pause(); endMusic.currentTime = 0; 
                     let p = menuMusic.play();
-                    if(p !== undefined) p.catch(e => {}); // Catches autoplay blocks silently
+                    if(p !== undefined) p.catch(e => {}); 
                 } catch(e) {} 
             },
             playEnd: function() { 
@@ -392,6 +413,14 @@
                 if (this.invuln > 0) return;
                 lives--; AudioSys.boom();
                 createExplosion(this.x + this.w/2, this.y + this.h/2, 30, '#00ffff');
+                
+                // Infinite lives during Demo Mode
+                if (currentState === STATE.DEMO) {
+                    lives = 3;
+                    this.invuln = 2;
+                    return;
+                }
+
                 updateHUD();
                 if (lives <= 0) gameOver(); else this.invuln = 2;
             }
@@ -498,7 +527,11 @@
         function createExplosion(x, y, count, color) { for(let i=0; i<count; i++) particles.push(new Particle(x, y, color)); }
 
         function startLevel() {
-            MusicManager.stop(); 
+            // Only stop music if we are NOT in Demo Mode (this keeps end-music playing seamlessly)
+            if (currentState !== STATE.DEMO) {
+                MusicManager.stop(); 
+            }
+            
             enemies = []; bullets = []; powerups = [];
             powerupSpawned = false; 
 
@@ -528,7 +561,26 @@
         }
 
         function update(dt) {
-            if (STATE.PLAYING !== currentState) return;
+            if (STATE.PLAYING !== currentState && STATE.DEMO !== currentState) return;
+
+            // Handle Auto-Pilot during Demo Mode
+            if (currentState === STATE.DEMO) {
+                demoTimer += dt;
+                if (demoTimer >= 35) {
+                    startCreditsScroll(true); 
+                    return;
+                }
+                
+                // Auto-Pilot Movement & Firing
+                player.x += Math.sin(Date.now() / 1000) * 150 * dt;
+                player.x = Math.max(0, Math.min(WIDTH - player.w, player.x));
+                
+                if (Math.random() < 0.05 && player.cooldown <= 0) {
+                    AudioSys.shoot();
+                    bullets.push(new Bullet(player.x + player.w/2 - 4, player.y, -600, true));
+                    player.cooldown = 0.15;
+                }
+            }
             
             if (currentLevel !== 13) {
                 stars.forEach(s => {
@@ -537,7 +589,14 @@
                 });
             }
 
-            player.update(dt);
+            if (currentState !== STATE.DEMO) {
+                player.update(dt);
+            }
+            
+            if (currentState === STATE.DEMO && player.invuln > 0) {
+                player.invuln -= dt;
+            }
+
             bullets.forEach(b => b.update(dt));
             enemies.forEach(e => e.update(dt));
             powerups.forEach(p => p.update(dt));
@@ -567,8 +626,10 @@
 
             if (enemies.length === 0) {
                 currentLevel++;
-                if (currentLevel > 13) winGame();
-                else {
+                if (currentLevel > 13) {
+                    if (currentState === STATE.DEMO) startCreditsScroll(true);
+                    else winGame();
+                } else {
                     try {
                         levelUpAudio.currentTime = 0;
                         let p = levelUpAudio.play();
@@ -599,6 +660,52 @@
             bullets.forEach(b => b.draw(ctx));
             enemies.forEach(e => e.draw(ctx));
             player.draw(ctx);
+
+            // Draw Demo Mode Flashing Overlay
+            if (currentState === STATE.DEMO) {
+                ctx.fillStyle = (Math.floor(Date.now() / 500) % 2 === 0) ? '#ff003c' : '#ffffff';
+                ctx.font = '30px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText('DEMO MODE', WIDTH / 2, HEIGHT / 3);
+                ctx.font = '15px "Press Start 2P"';
+                ctx.fillText('PRESS FIRE OR 1 TO START', WIDTH / 2, HEIGHT / 3 + 40);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        function returnToMenu() {
+            attractTimer = 0;
+            gameOverTimer = 0;
+            creditsTimer = 0;
+            isAttractCredits = false;
+            currentState = STATE.MENU;
+            MusicManager.playMenu();
+            
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+            const cred = document.getElementById('credits');
+            if(cred) cred.classList.remove('scroll-credits');
+            
+            const main = document.getElementById('mainMenu');
+            if(main) main.classList.remove('hidden');
+        }
+
+        function startDemoMode() {
+            score = 0; lives = 3; currentLevel = 1; speedMultiplier = 1;
+            player = new Player();
+            initStars(); 
+            startLevel();
+            
+            currentState = STATE.DEMO;
+            demoTimer = 0;
+
+            // Start playing the end credits music during the demo run
+            MusicManager.playEnd();
+            
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+            const cred = document.getElementById('credits');
+            if(cred) cred.classList.remove('scroll-credits');
+            const hud = document.getElementById('hud');
+            if(hud) hud.classList.remove('hidden');
         }
 
         function gameLoop(timestamp) {
@@ -606,7 +713,44 @@
             if (dt > 0.1) dt = 0.1;
             lastTime = timestamp;
 
-            if (currentState === STATE.PLAYING) {
+            // Main Menu Attract Idle Timer
+            if (currentState === STATE.MENU) {
+                attractTimer += dt;
+                if (attractTimer >= 15) {
+                    startDemoMode();
+                }
+            } else {
+                attractTimer = 0;
+            }
+
+            // Game Over Timeout (15 seconds idle)
+            if (currentState === STATE.GAMEOVER || currentState === STATE.VICTORY) {
+                gameOverTimer += dt;
+                if (gameOverTimer >= 15) {
+                    if (isEnteringScore) {
+                        const finalName = arcadeChars[arcadeInitials[0]] + arcadeChars[arcadeInitials[1]] + arcadeChars[arcadeInitials[2]];
+                        ScoreManager.addScore(finalName, score);
+                        isEnteringScore = false;
+                        document.getElementById('highScoreInputBlock').classList.add('hidden');
+                        document.getElementById('highScoreInputBlock').classList.remove('flex');
+                    }
+                    document.getElementById('gameOverMenu').classList.add('hidden');
+                    
+                    // If we died (Game Over timeout), scroll attract credits so the demo loops.
+                    // If we timed out on Victory, scroll real credits.
+                    startCreditsScroll(currentState === STATE.GAMEOVER); 
+                }
+            }
+
+            // Credits Auto-Return (after 60s scroll completes)
+            if (currentState === STATE.CREDITS) {
+                creditsTimer += dt;
+                if (creditsTimer >= 62) { // 60s transition + 2s buffer
+                    returnToMenu();
+                }
+            }
+
+            if (currentState === STATE.PLAYING || currentState === STATE.DEMO) {
                 update(dt);
                 drawGame();
             } else if (currentState === STATE.PAUSED) {
@@ -614,7 +758,8 @@
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, WIDTH, HEIGHT);
                 ctx.fillStyle = '#39ff14'; ctx.textAlign = 'center'; ctx.font = '40px "Press Start 2P"';
                 ctx.fillText('PAUSED', WIDTH / 2, HEIGHT / 2 - 20);
-                ctx.font = '14px "Press Start 2P"'; ctx.fillText('P TO RESUME  |  M FOR MENU', WIDTH / 2, HEIGHT / 2 + 40);
+                ctx.font = '14px "Press Start 2P"'; ctx.fillText('PRESS CTRL+P OR FIRE TO RESUME', WIDTH / 2, HEIGHT / 2 + 30);
+                ctx.fillText('ESC TO QUIT TO MENU', WIDTH / 2, HEIGHT / 2 + 60);
                 ctx.textAlign = 'left'; 
             } else if (currentState === STATE.MENU || currentState === STATE.HIGHSCORES) {
                 ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -628,6 +773,21 @@
             }
 
             animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateArcadeInputUI() {
+            for (let i = 0; i < 3; i++) {
+                const span = document.getElementById(`char-${i}`);
+                if (!span) continue;
+                span.innerText = arcadeChars[arcadeInitials[i]];
+                if (i === currentLetterIdx) {
+                    span.classList.add('border-yellow-400', 'text-yellow-400');
+                    span.classList.remove('border-transparent', 'text-gray-500');
+                } else {
+                    span.classList.remove('border-yellow-400', 'text-yellow-400');
+                    span.classList.add('border-transparent', 'text-gray-500');
+                }
+            }
         }
 
         const ScoreManager = {
@@ -647,16 +807,13 @@
                         this.scores = [...this.defaultScores];
                     }
                 } catch(e) {
-                    console.warn("Save data bypassed, loading defaults.");
                     this.scores = [...this.defaultScores];
                 }
             },
             save: function() { 
                 try {
                     localStorage.setItem('spaceShoot2Scores', JSON.stringify(this.scores)); 
-                } catch(e) {
-                    console.warn("Could not save to local storage", e);
-                }
+                } catch(e) {}
             },
             isHighScore: function(score) { 
                 return this.scores.length < 5 || score > this.scores[this.scores.length-1].score; 
@@ -691,53 +848,162 @@
         };
         ScoreManager.init();
 
+        function startCreditsScroll(isDemo = false) {
+            currentState = STATE.CREDITS;
+            creditsTimer = 0;
+            isAttractCredits = isDemo; 
+
+            const screen = document.getElementById('creditsScreen');
+            if(screen) screen.classList.remove('hidden');
+
+            const victoryContainer = document.getElementById('victoryTextContainer');
+            const buttonsContainer = document.getElementById('creditsButtonsBlock');
+
+            if (isDemo) {
+                if(victoryContainer) victoryContainer.classList.add('hidden');
+                if(buttonsContainer) buttonsContainer.classList.add('hidden');
+            } else {
+                if(victoryContainer) victoryContainer.classList.remove('hidden');
+                if(buttonsContainer) buttonsContainer.classList.remove('hidden');
+            }
+            
+            try { ScoreManager.renderCreditsList(); } catch(e) {}
+
+            setTimeout(() => { 
+                const cred = document.getElementById('credits');
+                if(cred) cred.classList.add('scroll-credits'); 
+            }, 100);
+        }
+
         const keys = {};
         window.addEventListener('keydown', e => { 
             if (!e) return;
             const code = e.code || '';
             const key = e.key || '';
+
+            // Reset interaction timers on any keypress
+            attractTimer = 0;
+            gameOverTimer = 0; 
+
+            // Instantly break out of Demo or Attract Credits on any keypress
+            if (currentState === STATE.DEMO || (currentState === STATE.CREDITS && isAttractCredits)) {
+                returnToMenu();
+                return;
+            }
             
             keys[code] = true; keys[key] = true; 
             if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(code)) e.preventDefault(); 
             
             const k = key.toLowerCase();
             
-            if (code === 'Escape') { try { window.close(); } catch(err){} }
-            
-            if (k === 'p') {
-                if (currentState === STATE.PLAYING) currentState = STATE.PAUSED;
-                else if (currentState === STATE.PAUSED) { currentState = STATE.PLAYING; lastTime = performance.now(); }
+            // ARCADE SCORE ENTRY OVERRIDE
+            if ((currentState === STATE.GAMEOVER || currentState === STATE.VICTORY) && isEnteringScore) {
+                if (code === 'ArrowUp' || k === 'w') {
+                    arcadeInitials[currentLetterIdx] = (arcadeInitials[currentLetterIdx] + 1) % arcadeChars.length;
+                    updateArcadeInputUI();
+                } else if (code === 'ArrowDown' || k === 's') {
+                    arcadeInitials[currentLetterIdx] = (arcadeInitials[currentLetterIdx] - 1 + arcadeChars.length) % arcadeChars.length;
+                    updateArcadeInputUI();
+                } else if (code === 'ArrowLeft' || k === 'a') {
+                    currentLetterIdx = Math.max(0, currentLetterIdx - 1);
+                    updateArcadeInputUI();
+                } else if (code === 'ArrowRight' || k === 'd') {
+                    currentLetterIdx = Math.min(2, currentLetterIdx + 1);
+                    updateArcadeInputUI();
+                } else if (code === 'Space') { // FIRE button saves
+                    const finalName = arcadeChars[arcadeInitials[0]] + arcadeChars[arcadeInitials[1]] + arcadeChars[arcadeInitials[2]];
+                    ScoreManager.addScore(finalName, score);
+                    isEnteringScore = false;
+                    document.getElementById('highScoreInputBlock').classList.add('hidden');
+                    document.getElementById('highScoreInputBlock').classList.remove('flex');
+
+                    if (currentState === STATE.VICTORY) {
+                        document.getElementById('gameOverMenu').classList.add('hidden');
+                        startCreditsScroll(false); // Play full victory credits
+                    } else {
+                        document.getElementById('gameOverButtonsBlock').classList.remove('hidden');
+                    }
+                }
+                return; // Block other inputs while entering score
+            }
+
+            // Quick Restart from Game Over / Victory Screen (if not entering a score)
+            if ((currentState === STATE.GAMEOVER || currentState === STATE.VICTORY) && !isEnteringScore) {
+                if (code === 'Space' || code === 'Enter' || key === '1' || k === 'r') {
+                    startGame();
+                    return;
+                }
+            }
+
+            // Start + Fire combo to warp to credits
+            if (currentState === STATE.PLAYING) {
+                if (keys['Space'] && (keys['Digit1'] || keys['Enter'] || keys['1'])) {
+                    winGame();
+                    return;
+                }
+            }
+
+            // Quit to Arcade Menu Redirect
+            if (k === 'q') { 
+                window.location.href = 'https://tymnewell.github.io/Space-Shoot-arcade-menu/';
+                return; 
+            }
+
+            // General Escape (Quit / Back to menu)
+            if (code === 'Escape') { 
+                if (currentState === STATE.PAUSED || currentState === STATE.PLAYING) {
+                    returnToMenu();
+                } else if (currentState === STATE.MENU) {
+                    try { window.close(); } catch(err){}
+                }
+                return;
             }
             
-            if (k === 'm' && [STATE.GAMEOVER, STATE.HIGHSCORES, STATE.PAUSED, STATE.CREDITS].includes(currentState)) {
-                MusicManager.playMenu();
-                document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
-                const cred = document.getElementById('credits');
-                if(cred) cred.classList.remove('scroll-credits');
-                const main = document.getElementById('mainMenu');
-                if(main) main.classList.remove('hidden');
-                currentState = STATE.MENU;
+            // Toggle Pause
+            if (k === 'p' && e.ctrlKey) {
+                e.preventDefault();
+                if (currentState === STATE.PLAYING) {
+                    currentState = STATE.PAUSED;
+                } else if (currentState === STATE.PAUSED) { 
+                    currentState = STATE.PLAYING; lastTime = performance.now(); 
+                }
+                return;
+            }
+
+            // Resume from Pause with FIRE
+            if (currentState === STATE.PAUSED && code === 'Space') {
+                currentState = STATE.PLAYING; lastTime = performance.now();
+                return;
+            }
+            
+            // Manual skip of REAL credits or standard menus
+            if (k === 'm' && [STATE.GAMEOVER, STATE.HIGHSCORES, STATE.PAUSED].includes(currentState)) {
+                returnToMenu();
+                return;
+            }
+            if (k === 'm' && currentState === STATE.CREDITS && !isAttractCredits) {
+                returnToMenu(); 
+                return;
             }
             
             if (k === 'h' && currentState === STATE.MENU) { 
                 const btn = document.getElementById('btnHighScores');
                 if(btn) btn.click(); 
+                return;
             }
             
-            if ((code === 'Enter' || key === '1') && currentState === STATE.MENU) { 
-                const btn = document.getElementById('btnStart');
-                if(btn) btn.click(); 
+            // Allow FIRE (Space) or START (1/Enter/R) to start the game from Menu
+            if ((code === 'Enter' || key === '1' || code === 'Space' || k === 'r') && currentState === STATE.MENU) { 
+                startGame();
+                return;
             }
             
             if (k === 't' && currentState === STATE.PLAYING) {
                 currentLevel = 13;
                 startLevel();
             }
-
-            if (k === 'c' && currentState === STATE.PLAYING) {
-                winGame();
-            }
         });
+        
         window.addEventListener('keyup', e => { 
             if(!e) return;
             if(e.code) keys[e.code] = false; 
@@ -778,22 +1044,34 @@
 
         function gameOver() {
             currentState = STATE.GAMEOVER; 
+            gameOverTimer = 0; // Reset countdown
             MusicManager.playEnd(); 
             const hud = document.getElementById('hud');
             if(hud) hud.classList.add('hidden');
             const menu = document.getElementById('gameOverMenu');
             if(menu) menu.classList.remove('hidden');
+            
+            // Set title to Red Game Over
+            const title = document.getElementById('gameOverTitle');
+            if(title) {
+                title.innerText = "GAME OVER";
+                title.className = "text-4xl text-red-500 mb-4 drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]";
+            }
+
             const fs = document.getElementById('finalScore');
             if(fs) fs.innerText = score;
             
             try {
                 if (ScoreManager.isHighScore(score) && score > 0) {
+                    isEnteringScore = true;
+                    arcadeInitials = [0, 0, 0];
+                    currentLetterIdx = 0;
+                    updateArcadeInputUI();
                     document.getElementById('highScoreInputBlock').classList.remove('hidden');
                     document.getElementById('highScoreInputBlock').classList.add('flex');
                     document.getElementById('gameOverButtonsBlock').classList.add('hidden');
-                    const input = document.getElementById('playerNameInput');
-                    if(input) { input.value = ''; input.focus(); }
                 } else {
+                    isEnteringScore = false;
                     document.getElementById('highScoreInputBlock').classList.add('hidden');
                     document.getElementById('highScoreInputBlock').classList.remove('flex');
                     document.getElementById('gameOverButtonsBlock').classList.remove('hidden');
@@ -802,24 +1080,42 @@
         }
 
         function winGame() {
-            currentState = STATE.CREDITS; 
             MusicManager.playEnd(); 
             const hud = document.getElementById('hud');
             if(hud) hud.classList.add('hidden');
-            const screen = document.getElementById('creditsScreen');
-            if(screen) screen.classList.remove('hidden');
-            
-            try {
-                if (ScoreManager.isHighScore(score) && score > 0) ScoreManager.addScore('YOU', score);
-                ScoreManager.renderCreditsList();
-            } catch(e) { console.warn('Credit score render bypassed'); }
+            gameOverTimer = 0; // Reset countdown for Victory idle
 
-            setTimeout(() => { 
-                const cred = document.getElementById('credits');
-                if(cred) cred.classList.add('scroll-credits'); 
-            }, 100);
+            try {
+                if (ScoreManager.isHighScore(score) && score > 0) {
+                    // Send to the arcade input screen, but change text to VICTORY
+                    currentState = STATE.VICTORY;
+                    const menu = document.getElementById('gameOverMenu');
+                    if(menu) menu.classList.remove('hidden');
+                    
+                    const title = document.getElementById('gameOverTitle');
+                    if(title) {
+                        title.innerText = "VICTORY!";
+                        title.className = "text-4xl text-green-400 mb-4 drop-shadow-[0_0_10px_rgba(0,255,0,0.8)]";
+                    }
+
+                    const fs = document.getElementById('finalScore');
+                    if(fs) fs.innerText = score;
+
+                    isEnteringScore = true;
+                    arcadeInitials = [0, 0, 0];
+                    currentLetterIdx = 0;
+                    updateArcadeInputUI();
+                    document.getElementById('highScoreInputBlock').classList.remove('hidden');
+                    document.getElementById('highScoreInputBlock').classList.add('flex');
+                    document.getElementById('gameOverButtonsBlock').classList.add('hidden');
+                } else {
+                    // Start credits right away if they didn't get a high score
+                    startCreditsScroll(false);
+                }
+            } catch(e) { startCreditsScroll(false); }
         }
 
+        // Keep standard mouse buttons for testing convenience
         const btnStart = document.getElementById('btnStart');
         if(btnStart) btnStart.addEventListener('click', startGame);
         
@@ -846,45 +1142,30 @@
 
         const btnMenuScores = document.getElementById('btnMenuFromScores');
         if(btnMenuScores) btnMenuScores.addEventListener('click', () => {
-            MusicManager.playMenu(); 
-            document.getElementById('highScoresMenu').classList.add('hidden');
-            document.getElementById('mainMenu').classList.remove('hidden');
-            currentState = STATE.MENU;
-        });
-
-        const btnSave = document.getElementById('btnSaveScore');
-        if(btnSave) btnSave.addEventListener('click', () => {
-            const input = document.getElementById('playerNameInput');
-            ScoreManager.addScore(input ? input.value : 'AAA', score);
-            document.getElementById('highScoreInputBlock').classList.add('hidden');
-            document.getElementById('highScoreInputBlock').classList.remove('flex');
-            document.getElementById('gameOverButtonsBlock').classList.remove('hidden');
+            returnToMenu();
         });
 
         const btnMenuGO = document.getElementById('btnMenuFromGameOver');
         if(btnMenuGO) btnMenuGO.addEventListener('click', () => {
-            MusicManager.playMenu(); 
-            document.getElementById('gameOverMenu').classList.add('hidden');
-            document.getElementById('mainMenu').classList.remove('hidden');
-            currentState = STATE.MENU;
+            returnToMenu();
         });
 
         const btnMenuCred = document.getElementById('btnMenuFromCreditsFixed');
         if(btnMenuCred) btnMenuCred.addEventListener('click', () => {
-            MusicManager.playMenu(); 
-            document.getElementById('creditsScreen').classList.add('hidden');
-            const cred = document.getElementById('credits');
-            if(cred) cred.classList.remove('scroll-credits');
-            document.getElementById('mainMenu').classList.remove('hidden');
-            currentState = STATE.MENU;
+            returnToMenu();
         });
 
-        // Initialize menu music on first interaction (only if not playing already)
-        document.body.addEventListener('click', () => { 
+        // Autoplay Audio Fix for Arcade: Play music on very first button or joystick press
+        const unlockAudio = () => { 
             if (currentState === STATE.MENU || currentState === STATE.HIGHSCORES) {
                 MusicManager.playMenu(); 
             }
-        }, { once: true });
+            // Remove listeners once unlocked to prevent duplicate firing
+            window.removeEventListener('keydown', unlockAudio);
+            window.removeEventListener('click', unlockAudio);
+        };
+        window.addEventListener('keydown', unlockAudio);
+        window.addEventListener('click', unlockAudio);
 
         initStars();
         animationId = requestAnimationFrame(gameLoop);
